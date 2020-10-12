@@ -1,0 +1,71 @@
+#define F_CPU   16000000UL
+#include <avr/delay.h>
+#include <avr/io.h>
+#include <string.h>
+#include <avr/interrupt.h>
+#include <LiquidCrystal.h>
+const int rs=7, en=6, d4=5, d5=4, d6=3, d7=2;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+float temp;
+
+void adc_init()
+{
+  
+  ADCSRA |= ((1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0));
+  ADMUX |= (1<<REFS0);
+  ADCSRA |= (1<<ADEN);
+  ADCSRA |= (1<<ADSC);
+}
+
+uint16_t read_adc(uint8_t channel)
+{
+  
+  ADMUX &= 0xf0;
+  ADMUX |= channel;
+  ADCSRA |= (1<<ADSC);
+  while(ADCSRA & (1<<ADSC));
+  return ADC;
+}
+
+
+byte degree[8] = {
+  B01110,
+  B01010,
+  B01110,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+};
+
+
+
+int main()
+{
+  adc_init();
+  temp=0;
+  lcd.begin(16,2);
+  OCR1A = 62500;
+  TCCR1B |= (1 << WGM12)|(1 << CS12);
+  TIMSK1 |= (1 << OCIE1A);
+
+  lcd.createChar(0, degree);
+  
+  while(1)
+  {
+   
+    
+      if (temp!=(read_adc(0)* 0.004882814-0.5)*100)
+      {
+        lcd.setCursor(1, 0);
+        lcd.print("TEMP:");
+        lcd.setCursor(6, 0);
+        temp=(read_adc(0)* 0.004882814-0.5)*100;
+        lcd.print(temp, 2); 
+        lcd.setCursor(11, 0);
+      	lcd.write(byte(0));
+      	lcd.print("C");
+      }
+   
+  }
+}
