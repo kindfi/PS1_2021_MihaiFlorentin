@@ -1,0 +1,73 @@
+int adc_val_temp;
+int temp_final;
+float setpoint=30;
+double kp = 100, ki = 0.5, kd = 0.5; // exemplu valori
+double eroare= 0;
+double suma_erori= 0;
+double eroare_anterioara = 0;
+double derivativa = 0;
+double dt=0.01; // timp esantion
+double output=0;
+
+void adc_init()
+{
+  ADCSRA |= ((1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0));
+  ADMUX |= (1<<REFS0);
+  ADCSRA |= (1<<ADEN);
+  ADCSRA |= (1<<ADSC);
+}
+
+uint16_t read_adc(uint8_t channel)
+{
+  
+  ADMUX &= 0xf0;
+  ADMUX |= channel;
+  ADCSRA |= (1<<ADSC);
+  while(ADCSRA & (1<<ADSC));
+  return ADC;
+}
+
+int main(){
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+  //set Timer0 Intrerupere 10ms
+  OCR0A=156;
+  TCCR0B |= (1<<CS02) | (1<<CS00);
+  TCCR0A |= (1<<WGM01);
+  TIMSK0 |= (1<<OCIE0A);
+  //timer2 pwm
+   DDRB |= 1<<PB3;
+  TCCR2A |= (1<<WGM20) | (1<<WGM21);
+  TCCR2A |= (1<<COM2A1);
+  TCCR2B |= (1<<CS21);
+  
+  
+  adc_init();
+  sei();
+
+ while(1) {
+  // put your main code here, to run repeatedly:
+  
+   
+}
+}
+ISR(TIMER0_COMPA_vect)
+{
+  
+  adc_val_temp=read_adc(1);
+  float u_i=adc_val_temp*5;
+  u_i=u_i/1023;
+  float temp=(u_i+0.02)*100;
+  eroare = setpoint - temp;
+  suma_erori= suma_erori + eroare * dt;
+  derivativa = (eroare - eroare_anterioara) / dt;
+  output = (kp * eroare) + (ki * suma_erori ) + (kd * derivativa);
+  eroare_anterioara = eroare;
+  if(output>255)
+    output=255;
+  if(output<0) 
+     output=0;
+  OCR2A=(int)output;
+  Serial.println(temp);
+  
+}
